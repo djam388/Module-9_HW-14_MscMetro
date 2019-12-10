@@ -135,8 +135,8 @@ public class Main
 
         }
 
-        parseLines(obj, lines);
-        parseStations(obj, lines);
+        parseLinesToJSON(obj, lines);
+        parseStationsToJSON(obj, lines);
 
         try (FileWriter file = new FileWriter("data/MoscowMetro.json")) {
 
@@ -150,7 +150,7 @@ public class Main
 
     }
 
-    public static void parseLines(JSONObject jsonObject, Map<String, Line> lines)
+    public static void parseLinesToJSON(JSONObject jsonObject, Map<String, Line> lines)
     {
         JSONArray list = new JSONArray();
         ArrayList<JSONObject> jsonObjectArrayList = new ArrayList<>();
@@ -167,7 +167,7 @@ public class Main
         jsonObject.put("Lines", list);
     }
 
-    public static void parseStations(JSONObject jsonObject, Map<String, Line> lines)
+    public static void parseStationsToJSON(JSONObject jsonObject, Map<String, Line> lines)
     {
 
         JSONObject objectDetails = new JSONObject();
