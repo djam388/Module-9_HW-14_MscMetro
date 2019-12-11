@@ -44,7 +44,7 @@ public class Main
         ArrayList<String> listStations = new ArrayList<>();
 
         for (int i = 1; i < rows.size(); i++)
-        { 
+        {
             Element row = rows.get(i);
 
             Elements colLineDetails = row.select("td");
