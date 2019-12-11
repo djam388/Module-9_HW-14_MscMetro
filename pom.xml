@@ -41,7 +41,6 @@
             </plugin>
         </plugins>
     </build>
-
     <dependencies>
         <dependency>
             <groupId>org.jsoup</groupId>
@@ -54,5 +53,4 @@
             <version>1.1.1</version>
         </dependency>
     </dependencies>
-    
 </project>
