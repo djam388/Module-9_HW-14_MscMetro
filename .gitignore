@@ -1,4 +1,4 @@
 /.idea
 *.iml
 data/*
-!data/*.json
+!data/.gitkeep
