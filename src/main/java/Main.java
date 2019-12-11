@@ -1,5 +1,6 @@
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -7,6 +8,8 @@ import org.jsoup.select.Elements;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,15 +18,15 @@ import java.util.Map;
 
 public class Main
 {
-    //private static ArrayList<Station> stations = new ArrayList<>();
-    //private static ArrayList<Line> lines = new ArrayList<>();
     private static JSONObject obj = new JSONObject();
     private static JSONArray list = new JSONArray();
+    private static HashMap<String, Line> parsedLines = new HashMap<>();
 
     public static void main(String[] args) {
 
 
         HashMap<String, Line> lines = new HashMap<>();
+
 
         String htmlString = null;
         try {
@@ -41,7 +44,7 @@ public class Main
         ArrayList<String> listStations = new ArrayList<>();
 
         for (int i = 1; i < rows.size(); i++)
-        { //first row is the col names so skip it.
+        { 
             Element row = rows.get(i);
 
             Elements colLineDetails = row.select("td");
@@ -135,8 +138,8 @@ public class Main
 
         }
 
-        parseLinesToJSON(obj, lines);
-        parseStationsToJSON(obj, lines);
+        writeLinesToJSON(obj, lines);
+        writeStationsToJSON(obj, lines);
 
         try (FileWriter file = new FileWriter("data/MoscowMetro.json")) {
 
@@ -146,11 +149,20 @@ public class Main
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println("Parsing finished!");
+        System.out.println("Writing to JSON file is finished!");
+        readFromJSON();
+        System.out.println("Reading from JSON file is finished!");
+        int stationsQuantity = 0;
+        for (String key : parsedLines.keySet())
+        {
+            stationsQuantity += parsedLines.get(key).getLineStations().size();
+        }
+        System.out.println("Total lines number: " + parsedLines.size()
+                + " ->> Total stations number: " + stationsQuantity);
 
     }
 
-    public static void parseLinesToJSON(JSONObject jsonObject, Map<String, Line> lines)
+    public static void writeLinesToJSON(JSONObject jsonObject, Map<String, Line> lines)
     {
         JSONArray list = new JSONArray();
         ArrayList<JSONObject> jsonObjectArrayList = new ArrayList<>();
@@ -164,10 +176,10 @@ public class Main
             jsonObjectArrayList.add(objectDetails);
         }
         jsonObjectArrayList.stream().forEach(jo -> list.add(jo));
-        jsonObject.put("Lines", list);
+        jsonObject.put("lines", list);
     }
 
-    public static void parseStationsToJSON(JSONObject jsonObject, Map<String, Line> lines)
+    public static void writeStationsToJSON(JSONObject jsonObject, Map<String, Line> lines)
     {
 
         JSONObject objectDetails = new JSONObject();
@@ -179,7 +191,67 @@ public class Main
             lineDetail.getLineStations().stream().forEach(station -> list.add(station.getName()));
             objectDetails.put(key, list);
         }
-        System.out.println(objectDetails.toString());
         jsonObject.put("stations", objectDetails);
+    }
+
+    public static void readFromJSON()
+    {
+        try
+        {
+            JSONParser parser = new JSONParser();
+            JSONObject jsonData = (JSONObject) parser.parse(getJsonFile("data/MoscowMetro.json"));
+
+            JSONArray linesArray = (JSONArray) jsonData.get("lines");
+            parseLines(linesArray);
+
+            JSONObject stationsObject = (JSONObject) jsonData.get("stations");
+            parseStations(stationsObject);
+
+        }
+        catch(Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private static String getJsonFile(String path)
+    {
+        StringBuilder builder = new StringBuilder();
+        try {
+            List<String> lines = Files.readAllLines(Paths.get(path));
+            lines.forEach(line -> builder.append(line));
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return builder.toString();
+    }
+
+    private static void parseStations(JSONObject stationsObject)
+    {
+        //stationsObject.keySet().forEach(lineNumberObject ->
+        for (Object lineNumberObject : stationsObject.keySet())
+        {
+            String lineNumber = (String) lineNumberObject;
+
+            JSONArray stationsArray = (JSONArray) stationsObject.get(lineNumberObject);
+            for (Object stationObject : stationsArray)
+            {
+                Station station = new Station((String) stationObject, parsedLines.get(lineNumber));
+                parsedLines.get(lineNumber).addStation(station);
+            }
+        }
+    }
+
+    private static void parseLines(JSONArray linesArray)
+    {
+        linesArray.forEach(lineObject -> {
+            JSONObject lineJsonObject = (JSONObject) lineObject;
+            Line line = new Line(
+                    (String) lineJsonObject.get("number"),
+                    (String) lineJsonObject.get("name"),
+                    (String) lineJsonObject.get("color")
+            );
+            parsedLines.put(line.getNumber(), line);
+        });
     }
 }
