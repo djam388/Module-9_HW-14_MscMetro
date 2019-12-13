@@ -1,5 +1,7 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 public class Line implements Comparable<Line>
@@ -44,7 +46,49 @@ public class Line implements Comparable<Line>
     @Override
     public int compareTo(Line line)
     {
-        return number.compareTo(line.getNumber());
+        String regex = "\\D+";
+        int number1ToCompare, number2ToCompare;
+        boolean foundOne, foundTwo;
+
+        Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE);
+        Matcher matcher1 = pattern.matcher(number);
+        Matcher matcher2 = pattern.matcher(line.getNumber());
+        foundOne = matcher1.find();
+        foundTwo = matcher2.find();
+        if (foundOne || foundTwo)
+        {
+            if (foundOne && foundTwo)
+            {
+                number1ToCompare = Integer.parseInt(number.substring(0, number.length() - matcher1.group(0).length()));
+                number2ToCompare = Integer.parseInt(line.getNumber().substring(0, line.getNumber().length() - matcher2.group(0).length()));
+            }
+            else if (foundOne)
+            {
+                number1ToCompare = Integer.parseInt(number.substring(0, number.length() - matcher1.group(0).length()));
+                number2ToCompare = Integer.parseInt(line.getNumber());
+            }
+            else
+            {
+                number1ToCompare = Integer.parseInt(number);
+                number2ToCompare = Integer.parseInt(line.getNumber().substring(0, line.getNumber().length() - matcher2.group(0).length()));
+            }
+
+            if (number1ToCompare == number2ToCompare)
+            {
+                return number.compareTo(line.getNumber());
+            }
+            else
+            {
+                return Integer.compare(number1ToCompare, number2ToCompare);
+            }
+
+        }
+        else
+        {
+            return Integer.compare(Integer.parseInt(number), Integer.parseInt(line.getNumber()));
+        }
+
+
     }
 
     @Override

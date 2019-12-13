@@ -1,3 +1,6 @@
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -8,16 +11,18 @@ import org.jsoup.select.Elements;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
 public class Main
 {
+    private static Gson gson = new GsonBuilder()
+            .setPrettyPrinting()
+            .create();
     private static JSONObject obj = new JSONObject();
     private static JSONArray list = new JSONArray();
     private static HashMap<String, Line> parsedLines = new HashMap<>();
@@ -25,7 +30,8 @@ public class Main
     public static void main(String[] args) {
 
 
-        HashMap<String, Line> lines = new HashMap<>();
+        HashMap<String, Line> linesParsed = new HashMap<>();
+        ArrayList<Line> sortedLinesLA = new ArrayList<>();
 
 
         String htmlString = null;
@@ -73,12 +79,12 @@ public class Main
                     listStations.add(colLineDetails.get(0).text().substring(1, (colLineDetails.get(0).text().length()-2)) //формируется список станций с номером линии
                                     + ", "
                                     + colLineDetails.get(1).select("a").attr("title").substring(0, foundIndex - 1));
-                    if (lines.containsKey(colLineDetails.get(0).text().substring(1, (colLineDetails.get(0).text().length()-2)))) //проверка на существовании линии в списке
+                    if (linesParsed.containsKey(colLineDetails.get(0).text().substring(1, (colLineDetails.get(0).text().length()-2)))) //проверка на существовании линии в списке
                     { //если есть, получаем данные для проверки цвета -> для коррекции
-                        lineToCheck = lines.get(colLineDetails.get(0).text().substring(1, (colLineDetails.get(0).text().length()-2)));
+                        lineToCheck = linesParsed.get(colLineDetails.get(0).text().substring(1, (colLineDetails.get(0).text().length()-2)));
                         if(lineToCheck.getColor().equals("#000000"))
                         {//если не был определен цвет, меняем на правильный цвет
-                            lines.replace(colLineDetails.get(0).text().substring(1, (colLineDetails.get(0).text().length()-2)),
+                            linesParsed.replace(colLineDetails.get(0).text().substring(1, (colLineDetails.get(0).text().length()-2)),
                                     new Line(colLineDetails.get(0).text().substring(1, (colLineDetails.get(0).text().length()-2)),
                                             colLineDetails.get(0).select("span").attr("title"),
                                             (colLineDetails.get(0).attr("style").length() > 0 ? colLineDetails.get(0).attr("style").replaceAll(("background:") , "") : "#000000"))); // #000000 используется, если при парсинге не был обнаружен цвет
@@ -86,7 +92,7 @@ public class Main
                     }
                     else
                     {//добавляем новую линию
-                        lines.put(colLineDetails.get(0).text().substring(1, (colLineDetails.get(0).text().length()-2)),
+                        linesParsed.put(colLineDetails.get(0).text().substring(1, (colLineDetails.get(0).text().length()-2)),
                                 new Line(colLineDetails.get(0).text().substring(1, (colLineDetails.get(0).text().length()-2)),
                                         colLineDetails.get(0).select("span").attr("title"),
                                         (colLineDetails.get(0).attr("style").length() > 0 ? colLineDetails.get(0).attr("style").replaceAll(("background:") , "") : "#000000"))); // #000000 используется, если при парсинге не был обнаружен цвет
@@ -99,12 +105,12 @@ public class Main
                     listStations.add(colLineDetails.get(0).text().substring(0, (colLineDetails.get(0).text().length()-2)) //формируется список станций с номером линии
                             + ", "
                             + colLineDetails.get(1).select("a").attr("title").substring(0, foundIndex - 1));
-                    if (lines.containsKey(colLineDetails.get(0).text().substring(0, (colLineDetails.get(0).text().length()-2)))) //проверка на существовании линии в списке
+                    if (linesParsed.containsKey(colLineDetails.get(0).text().substring(0, (colLineDetails.get(0).text().length()-2)))) //проверка на существовании линии в списке
                     { // если есть, получаем данные для проверки цвета -> для коррекции
-                        lineToCheck = lines.get(colLineDetails.get(0).text().substring(0, (colLineDetails.get(0).text().length()-2)));
+                        lineToCheck = linesParsed.get(colLineDetails.get(0).text().substring(0, (colLineDetails.get(0).text().length()-2)));
                         if (lineToCheck.getColor().equals("#000000"))
                         { // если не был определен цвет, меняем на правильный цвет
-                            lines.replace(colLineDetails.get(0).text().substring(0, (colLineDetails.get(0).text().length()-2)),
+                            linesParsed.replace(colLineDetails.get(0).text().substring(0, (colLineDetails.get(0).text().length()-2)),
                                     new Line(colLineDetails.get(0).text().substring(0, (colLineDetails.get(0).text().length()-2)),
                                             colLineDetails.get(0).select("span").attr("title"),
                                             (colLineDetails.get(0).attr("style").length() > 0 ? colLineDetails.get(0).attr("style").replaceAll(("background:") , "") : "#000000"))); // #000000 используется, если при парсинге не был обнаружен цвет
@@ -112,7 +118,7 @@ public class Main
                     }
                     else
                     { // добавляем новую линию
-                        lines.put(colLineDetails.get(0).text().substring(0, (colLineDetails.get(0).text().length()-2)),
+                        linesParsed.put(colLineDetails.get(0).text().substring(0, (colLineDetails.get(0).text().length()-2)),
                                 new Line(colLineDetails.get(0).text().substring(0, (colLineDetails.get(0).text().length()-2)),
                                         colLineDetails.get(0).select("span").attr("title"),
                                         (colLineDetails.get(0).attr("style").length() > 0 ? colLineDetails.get(0).attr("style").replaceAll(("background:") , "") : "#000000")));
@@ -125,23 +131,41 @@ public class Main
                 listStations.add(fragments[0] + ", " + colLineDetails.get(1).select("a").attr("title").substring(0, foundIndex - 1));
                 listStations.add(fragments[1].substring(0, 2) + ", " + colLineDetails.get(1).select("a").attr("title").substring(0, foundIndex - 1));
             }
-
-
         }
+
         Line linesToEdit;
 
         for (String station : listStations) // добавляем станции к линиям соответственно
         {
             String[] fragments = station.split(", ");
-            linesToEdit = lines.get(fragments[0]);
-            linesToEdit.addStation(new Station(fragments[1], lines.get(fragments[0])));
+            linesToEdit = linesParsed.get(fragments[0]);
+            linesToEdit.addStation(new Station(fragments[1], linesParsed.get(fragments[0])));
 
         }
 
-        writeLinesToJSON(obj, lines);
-        writeStationsToJSON(obj, lines);
+        for (String key : linesParsed.keySet()) //новый ArrayList с линиями для сортировки
+        {
+            sortedLinesLA.add(linesParsed.get(key));
+        }
 
-        try (FileWriter file = new FileWriter("data/MoscowMetro.json")) {
+        Collections.sort(sortedLinesLA); //сортировка по номерам линий
+
+
+
+
+
+        System.out.println("Sorting finished!");
+
+
+        writeLinesToJSON(obj, sortedLinesLA);
+        writeStationsToJSON(obj, sortedLinesLA);
+
+        writeSortedLinesToJSON(sortedLinesLA);
+
+
+
+
+        try (FileWriter file = new FileWriter("data/MoscowMetroSimpleJSON.json")) {
 
             file.write(obj.toJSONString());
             file.flush();
@@ -162,16 +186,43 @@ public class Main
 
     }
 
-    public static void writeLinesToJSON(JSONObject jsonObject, Map<String, Line> lines)
+    public static void writeSortedLinesToJSON(List<Line> linesSorted)
+    {
+        LinesNumberSortred lines = new LinesNumberSortred();
+
+        for (Line line : linesSorted)
+        {
+            LineNumberAndStations lineNumberAndStations = new LineNumberAndStations();
+            lineNumberAndStations.setLineNumber(line.getNumber());
+            for (Station station : line.getLineStations())
+            {
+                lineNumberAndStations.setStation(station.getName());
+            }
+            lines.addLineNumber(lineNumberAndStations);
+        }
+
+        try (FileWriter writer = new FileWriter("data/MoscowMetroSorted.json")) {
+            Gson gson = new GsonBuilder().create();
+            gson.toJson(lines, writer);
+            writer.flush();
+            writer.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+
+    public static void writeLinesToJSON(JSONObject jsonObject, ArrayList<Line> lines)
     {
         JSONArray list = new JSONArray();
         ArrayList<JSONObject> jsonObjectArrayList = new ArrayList<>();
-        for (String key : lines.keySet())
+        for (int i = 0; i < lines.size(); i++)
         {
             JSONObject objectDetails = new JSONObject();
-            objectDetails.put("number", lines.get(key).getNumber());
-            objectDetails.put("name", lines.get(key).getName());
-            objectDetails.put("color", lines.get(key).getColor());
+            objectDetails.put("number", lines.get(i).getNumber());
+            objectDetails.put("name", lines.get(i).getName());
+            objectDetails.put("color", lines.get(i).getColor());
 
             jsonObjectArrayList.add(objectDetails);
         }
@@ -179,19 +230,27 @@ public class Main
         jsonObject.put("lines", list);
     }
 
-    public static void writeStationsToJSON(JSONObject jsonObject, Map<String, Line> lines)
+    public static void writeStationsToJSON(JSONObject jsonObject, ArrayList<Line> lines)
     {
 
-        JSONObject objectDetails = new JSONObject();
-        Line lineDetail;
-        for (String key : lines.keySet())
-        {
+        ArrayList<JSONObject>  objectDetails = new ArrayList<>();
+        JSONObject mergedObject = new JSONObject();
+        Boolean objectCreated = false;
+        JSONObject objectDetail2 = new JSONObject();
+        JSONObject objectDetail = new JSONObject();
+        for (int i = 0; i < lines.size(); i++) {
             JSONArray list = new JSONArray();
-            lineDetail = lines.get(key);
-            lineDetail.getLineStations().stream().forEach(station -> list.add(station.getName()));
-            objectDetails.put(key, list);
+
+
+            {
+                lines.get(i).getLineStations().stream().forEach(station -> list.add(station.getName()));
+                objectDetail.put(lines.get(i).getNumber(), list);
+
+            }
         }
-        jsonObject.put("stations", objectDetails);
+
+        jsonObject.put("stations", objectDetail);
+
     }
 
     public static void readFromJSON()
@@ -199,7 +258,7 @@ public class Main
         try
         {
             JSONParser parser = new JSONParser();
-            JSONObject jsonData = (JSONObject) parser.parse(getJsonFile("data/MoscowMetro.json"));
+            JSONObject jsonData = (JSONObject) parser.parse(getJsonFile("data/MoscowMetroSimpleJSON.json"));
 
             JSONArray linesArray = (JSONArray) jsonData.get("lines");
             parseLines(linesArray);
@@ -254,4 +313,6 @@ public class Main
             parsedLines.put(line.getNumber(), line);
         });
     }
+
+
 }
